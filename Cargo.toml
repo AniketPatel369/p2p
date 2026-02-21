@@ -1,0 +1,16 @@
+[workspace]
+members = [
+  "crates/identity",
+  "crates/discovery",
+  "crates/handshake",
+  "crates/transfer",
+  "crates/large_file_manager",
+  "crates/lan_offline",
+  "crates/nat_traversal",
+  "crates/desktop_ui",
+  "crates/audit_telemetry",
+  "crates/installer_update",
+  "crates/integration_suite",
+  "crates/crypto_envelope"
+]
+resolver = "2"

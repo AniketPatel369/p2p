@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P2P Drop - FE-6/7/8 Complete</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
+    <div class="app-window">
+      <aside class="sidebar" aria-label="Primary controls">
+        <div class="profile">
+          <div class="avatar">S</div>
+          <div>
+            <h1>Shivam's Laptop</h1>
+            <p>LAN Mode: Active</p>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Quick Actions</h2>
+          <button class="btn primary" id="chooseFileBtn">Select Files</button>
+          <button class="btn" id="scanBtn">Scan Nearby</button>
+          <button class="btn" id="simulateIncomingBtn">Simulate Incoming Request</button>
+          <input id="fileInput" type="file" multiple hidden />
+        </div>
+
+        <div class="section">
+          <h2>Discovery State</h2>
+          <div class="state-actions">
+            <button class="btn tiny" data-state="loading">Loading</button>
+            <button class="btn tiny" data-state="ready">Ready</button>
+            <button class="btn tiny" data-state="empty">Empty</button>
+            <button class="btn tiny" data-state="error">Error</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Security / Trust</h2>
+          <div class="security-card">
+            <p><strong>Local Fingerprint</strong></p>
+            <code id="localFingerprint">AA:BB:CC:DD:EE:11:22:33</code>
+            <p class="muted" id="trustStateText">Trust state: Unverified peer</p>
+            <button class="btn tiny" id="verifyPeerBtn">Mark Peer as Trusted</button>
+            <button class="btn tiny" id="revokePeerBtn">Revoke Trust</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Settings / Network</h2>
+          <label class="switch-row"><input type="checkbox" id="lanOnlyToggle" checked /> Offline LAN-only</label>
+          <label class="switch-row"><input type="checkbox" id="relayToggle" /> Allow Relay fallback</label>
+          <label class="switch-row"><input type="checkbox" id="diagToggle" /> Diagnostics mode</label>
+          <label class="switch-row">Update channel
+            <select id="updateChannelSelect">
+              <option value="stable" selected>Stable</option>
+              <option value="beta">Beta</option>
+              <option value="nightly">Nightly</option>
+            </select>
+          </label>
+          <p class="muted" id="settingsSummary">Mode: LAN-only, Channel: stable</p>
+        </div>
+
+        <div class="section">
+          <h2>Accessibility / Polish</h2>
+          <label class="switch-row"><input type="checkbox" id="reducedMotionToggle" /> Reduce motion</label>
+          <label class="switch-row"><input type="checkbox" id="highContrastToggle" /> High contrast</label>
+          <label class="switch-row"><input type="checkbox" id="largeTextToggle" /> Larger text</label>
+        </div>
+      </aside>
+
+      <main class="content" id="mainContent">
+        <header class="content-header">
+          <div>
+            <h2>People Nearby</h2>
+            <p id="stateText">Discovering nearby devices...</p>
+          </div>
+          <div class="search-pill">Modules FE-6/7/8</div>
+        </header>
+
+        <section id="loadingView" class="status-view">
+          <div class="spinner"></div>
+          <p>Scanning local network for nearby devices...</p>
+        </section>
+
+        <section id="errorView" class="status-view hidden error">
+          <p>Discovery failed. Check LAN and retry.</p>
+          <button class="btn" id="retryBtn">Retry</button>
+        </section>
+
+        <section id="emptyView" class="status-view hidden">
+          <p>No devices found yet. Keep scanning.</p>
+        </section>
+
+        <section id="deviceGrid" class="device-grid hidden"></section>
+
+        <section class="send-panel">
+          <h3>Send Files</h3>
+          <div id="dropZone" class="drop-zone" tabindex="0" aria-label="Drop files here">
+            <p><strong>Drag & drop files here</strong></p>
+            <p>or click “Select Files”</p>
+          </div>
+          <p id="selectedFilesText" class="muted">No files selected</p>
+
+          <div class="receiver-picker">
+            <h4>Select Receivers</h4>
+            <div id="receiverList" class="receiver-list"></div>
+          </div>
+
+          <button class="btn primary" id="confirmSendBtn">Confirm Send</button>
+          <p id="confirmText" class="muted"></p>
+        </section>
+
+        <section class="transfer-queue">
+          <h3>Transfer Dashboard</h3>
+          <div id="transferList" class="transfer-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="incomingModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="incomingTitle">
+      <div class="modal-card">
+        <h3 id="incomingTitle">Incoming File Request</h3>
+        <p id="incomingMeta">-</p>
+        <div class="modal-actions">
+          <button class="btn" id="declineBtn">Decline</button>
+          <button class="btn primary" id="acceptBtn">Accept</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
