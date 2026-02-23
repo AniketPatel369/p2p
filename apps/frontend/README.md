@@ -2,13 +2,26 @@
 
 This is a static front-end starter so you can test locally right now.
 
-## Run locally
+## Run locally (frontend + backend discovery integration)
 
-From repository root:
+From repository root, start backend service in terminal-1:
+
+```bash
+cargo run -p backend_service
+```
+
+Then start frontend static server in terminal-2:
 
 ```bash
 cd apps/frontend
 python3 -m http.server 4173
+```
+
+If Python is not installed, you can use Node instead:
+
+```bash
+cd apps/frontend
+npx http-server -p 4173
 ```
 
 Then open:
@@ -25,3 +38,4 @@ Then open:
 - ✅ FE-6 Security/Trust UI implemented (fingerprint + trust/revoke state).
 - ✅ FE-7 Settings/Network controls implemented (LAN-only/relay/diagnostics + update channel).
 - ✅ FE-8 Accessibility/polish implemented (skip link, focus-visible, reduced motion, high-contrast, large text, responsive polish).
+- ✅ BI-1 Frontend-backend discovery API integration implemented (`backend_service` + `/api/v1/discovery/devices`).

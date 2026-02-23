@@ -11,6 +11,7 @@ members = [
   "crates/audit_telemetry",
   "crates/installer_update",
   "crates/integration_suite",
-  "crates/crypto_envelope"
+  "crates/crypto_envelope",
+  "crates/backend_service"
 ]
 resolver = "2"

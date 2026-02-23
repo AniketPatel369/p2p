@@ -50,6 +50,8 @@ const sampleDevices = [
   { id: 'peer-c', name: 'Ravi Desktop', addr: '192.168.1.55', status: 'offline' }
 ];
 
+const backendBase = (window.localStorage.getItem('p2pBackendBase') || 'http://127.0.0.1:8787').replace(/\/$/, '');
+
 function setMode(mode) {
   state.mode = mode;
   loadingView.classList.toggle('hidden', mode !== 'loading');
@@ -60,7 +62,7 @@ function setMode(mode) {
   if (mode === 'loading') stateText.textContent = 'Discovering nearby devices...';
   if (mode === 'ready') stateText.textContent = `${state.devices.length} device(s) found`;
   if (mode === 'empty') stateText.textContent = 'No nearby devices currently available';
-  if (mode === 'error') stateText.textContent = 'Discovery unavailable';
+  if (mode === 'error') stateText.textContent = 'Discovery unavailable (start backend_service on :8787)';
 }
 
 function renderDevices() {
@@ -85,13 +87,30 @@ function renderDevices() {
   }
 }
 
-function runScan() {
+async function runScan() {
   setMode('loading');
-  setTimeout(() => {
-    state.devices = [...sampleDevices];
+  try {
+    const response = await fetch(`${backendBase}/api/v1/discovery/devices`, { method: 'GET' });
+    if (!response.ok) throw new Error(`backend status ${response.status}`);
+
+    const payload = await response.json();
+    const devices = Array.isArray(payload.devices) ? payload.devices : [];
+    state.devices = devices.map((d) => ({
+      id: d.id,
+      name: d.name,
+      addr: d.addr,
+      status: d.status
+    }));
+
     renderDevices();
-    setMode('ready');
-  }, 700);
+    if (!state.devices.length) setMode('empty');
+    else setMode('ready');
+  } catch (error) {
+    console.error('Discovery scan failed:', error);
+    state.devices = [];
+    renderDevices();
+    setMode('error');
+  }
 }
 
 function handleFiles(files) {
