@@ -1,0 +1,7 @@
+[package]
+name = "transfer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+crypto_envelope = { path = "../crypto_envelope" }
