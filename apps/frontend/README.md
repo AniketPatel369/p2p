@@ -39,3 +39,5 @@ Then open:
 - ✅ FE-7 Settings/Network controls implemented (LAN-only/relay/diagnostics + update channel).
 - ✅ FE-8 Accessibility/polish implemented (skip link, focus-visible, reduced motion, high-contrast, large text, responsive polish).
 - ✅ BI-1 Frontend-backend discovery API integration implemented (`backend_service` + `/api/v1/discovery/devices`).
+
+- ✅ BI-2 Transfer session start integration implemented (`POST /api/v1/transfers` from FE send action).

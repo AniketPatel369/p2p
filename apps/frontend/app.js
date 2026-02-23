@@ -125,14 +125,41 @@ function updateConfirmHint() {
   confirmText.textContent = `Ready check: files=${state.selectedFiles.length}, receivers=${state.selectedReceivers.size}`;
 }
 
-function confirmSend() {
+async function confirmSend() {
   if (!state.selectedFiles.length) return (confirmText.textContent = 'Select at least one file before sending.');
   if (!state.selectedReceivers.size) return (confirmText.textContent = 'Select at least one receiver before sending.');
 
-  const transfer = { id: Date.now(), name: state.selectedFiles[0].name, progress: 0, status: 'in-progress' };
-  state.transfers.unshift(transfer);
-  renderTransfers();
-  tickTransfer(transfer.id);
+  const fileName = state.selectedFiles[0].name;
+  const receiverIds = [...state.selectedReceivers];
+
+  try {
+    const response = await fetch(`${backendBase}/api/v1/transfers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_name: fileName, receiver_ids: receiverIds })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`backend status ${response.status}: ${errorText}`);
+    }
+
+    const transferResp = await response.json();
+    const transfer = {
+      id: Number(transferResp.transfer_id) || Date.now(),
+      name: transferResp.file_name || fileName,
+      progress: 0,
+      status: 'in-progress'
+    };
+
+    state.transfers.unshift(transfer);
+    confirmText.textContent = `Transfer queued with backend id=${transfer.id}`;
+    renderTransfers();
+    tickTransfer(transfer.id);
+  } catch (error) {
+    console.error('Transfer start failed:', error);
+    confirmText.textContent = 'Failed to queue transfer from backend. Is backend_service running?';
+  }
 }
 
 function tickTransfer(id) {

@@ -7,7 +7,7 @@ This plan adds backend integration incrementally so existing UI behavior keeps w
 - Update frontend discovery scan to fetch devices from backend instead of hardcoded timeout path.
 - Keep existing UI states (`loading/ready/empty/error`) unchanged.
 
-## BI-2: Transfer Session Start API
+## BI-2: Transfer Session Start API (implemented)
 - Add endpoint to create/send transfer intent (`POST /api/v1/transfers`).
 - Wire FE confirm-send to backend request and show request IDs in transfer queue.
 
@@ -26,4 +26,5 @@ This plan adds backend integration incrementally so existing UI behavior keeps w
 
 ## Status
 - ✅ BI-1 implemented
-- ⏭️ BI-2 next
+- ✅ BI-2 implemented
+- ⏭️ BI-3 next
