@@ -41,9 +41,3 @@ Then open:
 - ✅ BI-1 Frontend-backend discovery API integration implemented (`backend_service` + `/api/v1/discovery/devices`).
 
 - ✅ BI-2 Transfer session start integration implemented (`POST /api/v1/transfers` from FE send action).
-
-- ✅ BI-3 Incoming request consent integration implemented (`GET /api/v1/incoming-request` + `POST /api/v1/incoming-request/decision`).
-
-- ✅ BI-4 Transfer progress streaming integration implemented (`GET /api/v1/transfers/progress` polling from FE transfer dashboard).
-
-- ✅ BI-5 Security/settings persistence integration implemented (`/api/v1/security/state`, `/api/v1/security/trust`, `/api/v1/settings`).

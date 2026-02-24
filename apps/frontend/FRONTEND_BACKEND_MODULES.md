@@ -11,15 +11,15 @@ This plan adds backend integration incrementally so existing UI behavior keeps w
 - Add endpoint to create/send transfer intent (`POST /api/v1/transfers`).
 - Wire FE confirm-send to backend request and show request IDs in transfer queue.
 
-## BI-3: Incoming Request + Consent API (implemented)
+## BI-3: Incoming Request + Consent API
 - Add endpoint/event feed for incoming transfer requests.
 - Wire incoming modal to backend accept/decline APIs.
 
-## BI-4: Live Transfer Progress Streaming (implemented)
+## BI-4: Live Transfer Progress Streaming
 - Add server-sent events/websocket for transfer progress updates.
 - Replace local timer progress simulation with backend-driven updates.
 
-## BI-5: Security + Settings Persistence (implemented)
+## BI-5: Security + Settings Persistence
 - Wire trust actions, network mode, and accessibility/security settings to backend persistence APIs.
 
 ---
@@ -27,7 +27,4 @@ This plan adds backend integration incrementally so existing UI behavior keeps w
 ## Status
 - ✅ BI-1 implemented
 - ✅ BI-2 implemented
-- ✅ BI-3 implemented
-- ✅ BI-4 implemented
-- ✅ BI-5 implemented
-- 🎯 Frontend↔backend module plan complete
+- ⏭️ BI-3 next

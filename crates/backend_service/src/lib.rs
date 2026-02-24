@@ -48,48 +48,6 @@ pub fn route_request(request: &str) -> HttpResponse {
         return route_create_transfer(body);
     }
 
-    if first_line.starts_with("GET /api/v1/transfers/progress?") {
-        return route_transfer_progress(first_line);
-    }
-
-    if first_line.starts_with("GET /api/v1/incoming-request ") {
-        return HttpResponse {
-            status_line: "HTTP/1.1 200 OK",
-            content_type: "application/json; charset=utf-8",
-            body: "{\"request\":{\"request_id\":7001,\"from\":\"Aarav iPhone\",\"file_name\":\"holiday_photos.zip\",\"size\":\"128 MB\"}}".to_string(),
-        };
-    }
-
-    if first_line.starts_with("POST /api/v1/incoming-request/decision ") {
-        return route_incoming_decision(body);
-    }
-
-    if first_line.starts_with("GET /api/v1/security/state ") {
-        return HttpResponse {
-            status_line: "HTTP/1.1 200 OK",
-            content_type: "application/json; charset=utf-8",
-            body:
-                "{\"local_fingerprint\":\"FA:13:7B:2C:90:AA:45:99\",\"trust_state\":\"unverified\"}"
-                    .to_string(),
-        };
-    }
-
-    if first_line.starts_with("POST /api/v1/security/trust ") {
-        return route_security_trust(body);
-    }
-
-    if first_line.starts_with("GET /api/v1/settings ") {
-        return HttpResponse {
-            status_line: "HTTP/1.1 200 OK",
-            content_type: "application/json; charset=utf-8",
-            body: "{\"lan_only\":true,\"relay_enabled\":false,\"diagnostics_enabled\":false,\"update_channel\":\"stable\"}".to_string(),
-        };
-    }
-
-    if first_line.starts_with("POST /api/v1/settings ") {
-        return route_settings_save(body);
-    }
-
     HttpResponse {
         status_line: "HTTP/1.1 404 Not Found",
         content_type: "application/json; charset=utf-8",
@@ -129,101 +87,6 @@ fn route_create_transfer(body: &str) -> HttpResponse {
     }
 }
 
-fn route_transfer_progress(first_line: &str) -> HttpResponse {
-    let transfer_id = extract_query_u64(first_line, "transfer_id").unwrap_or(0);
-    let poll = extract_query_u64(first_line, "poll").unwrap_or(0);
-
-    if transfer_id == 0 {
-        return HttpResponse {
-            status_line: "HTTP/1.1 400 Bad Request",
-            content_type: "application/json; charset=utf-8",
-            body: "{\"error\":\"transfer_id_required\"}".to_string(),
-        };
-    }
-
-    let progress = (poll.saturating_mul(20)).min(100);
-    let status = if progress >= 100 {
-        "completed"
-    } else {
-        "in-progress"
-    };
-
-    HttpResponse {
-        status_line: "HTTP/1.1 200 OK",
-        content_type: "application/json; charset=utf-8",
-        body: format!(
-            "{{\"transfer_id\":{},\"progress_percent\":{},\"status\":\"{}\"}}",
-            transfer_id, progress, status
-        ),
-    }
-}
-
-fn route_incoming_decision(body: &str) -> HttpResponse {
-    let request_id = extract_json_u64(body, "request_id").unwrap_or(0);
-    let decision = extract_json_string(body, "decision").unwrap_or_default();
-
-    if request_id == 0 || (decision != "accepted" && decision != "declined") {
-        return HttpResponse {
-            status_line: "HTTP/1.1 400 Bad Request",
-            content_type: "application/json; charset=utf-8",
-            body: "{\"error\":\"invalid_decision_payload\"}".to_string(),
-        };
-    }
-
-    HttpResponse {
-        status_line: "HTTP/1.1 200 OK",
-        content_type: "application/json; charset=utf-8",
-        body: format!(
-            "{{\"request_id\":{},\"decision\":\"{}\",\"status\":\"recorded\"}}",
-            request_id, decision
-        ),
-    }
-}
-
-fn route_security_trust(body: &str) -> HttpResponse {
-    let trust_state = extract_json_string(body, "trust_state").unwrap_or_default();
-    if trust_state != "trusted" && trust_state != "unverified" {
-        return HttpResponse {
-            status_line: "HTTP/1.1 400 Bad Request",
-            content_type: "application/json; charset=utf-8",
-            body: "{\"error\":\"invalid_trust_state\"}".to_string(),
-        };
-    }
-
-    HttpResponse {
-        status_line: "HTTP/1.1 200 OK",
-        content_type: "application/json; charset=utf-8",
-        body: format!(
-            "{{\"trust_state\":\"{}\",\"status\":\"saved\"}}",
-            trust_state
-        ),
-    }
-}
-
-fn route_settings_save(body: &str) -> HttpResponse {
-    let lan_only = extract_json_bool(body, "lan_only").unwrap_or(true);
-    let relay_enabled = extract_json_bool(body, "relay_enabled").unwrap_or(false);
-    let diagnostics_enabled = extract_json_bool(body, "diagnostics_enabled").unwrap_or(false);
-    let update_channel =
-        extract_json_string(body, "update_channel").unwrap_or_else(|| "stable".to_string());
-
-    let normalized_channel =
-        if update_channel == "stable" || update_channel == "beta" || update_channel == "nightly" {
-            update_channel
-        } else {
-            "stable".to_string()
-        };
-
-    HttpResponse {
-        status_line: "HTTP/1.1 200 OK",
-        content_type: "application/json; charset=utf-8",
-        body: format!(
-            "{{\"lan_only\":{},\"relay_enabled\":{},\"diagnostics_enabled\":{},\"update_channel\":\"{}\"}}",
-            lan_only, relay_enabled, diagnostics_enabled, normalized_channel
-        ),
-    }
-}
-
 fn split_request(request: &str) -> (&str, &str) {
     let mut lines = request.lines();
     let first_line = lines.next().unwrap_or_default();
@@ -249,41 +112,6 @@ fn extract_json_string(body: &str, key: &str) -> Option<String> {
     Some(rest[..end_quote].to_string())
 }
 
-fn extract_json_bool(body: &str, key: &str) -> Option<bool> {
-    let marker = format!("\"{}\"", key);
-    let idx = body.find(&marker)?;
-    let after = &body[idx + marker.len()..];
-    let colon = after.find(':')?;
-    let after_colon = after[colon + 1..].trim_start();
-
-    if after_colon.starts_with("true") {
-        Some(true)
-    } else if after_colon.starts_with("false") {
-        Some(false)
-    } else {
-        None
-    }
-}
-
-fn extract_json_u64(body: &str, key: &str) -> Option<u64> {
-    let marker = format!("\"{}\"", key);
-    let idx = body.find(&marker)?;
-    let after = &body[idx + marker.len()..];
-    let colon = after.find(':')?;
-    let after_colon = after[colon + 1..].trim_start();
-
-    let digits = after_colon
-        .chars()
-        .take_while(|c| c.is_ascii_digit())
-        .collect::<String>();
-
-    if digits.is_empty() {
-        None
-    } else {
-        digits.parse().ok()
-    }
-}
-
 fn extract_json_string_array(body: &str, key: &str) -> Option<Vec<String>> {
     let marker = format!("\"{}\"", key);
     let idx = body.find(&marker)?;
@@ -307,23 +135,6 @@ fn extract_json_string_array(body: &str, key: &str) -> Option<Vec<String>> {
     }
 
     Some(values)
-}
-
-fn extract_query_u64(first_line: &str, key: &str) -> Option<u64> {
-    let (_, rest) = first_line.split_once(' ')?;
-    let (target, _) = rest.split_once(' ')?;
-    let (_, query) = target.split_once('?')?;
-
-    for pair in query.split('&') {
-        let (k, v) = pair.split_once('=')?;
-        if k == key {
-            if let Ok(parsed) = v.parse::<u64>() {
-                return Some(parsed);
-            }
-        }
-    }
-
-    None
 }
 
 fn escape_json(input: &str) -> String {

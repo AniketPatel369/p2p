@@ -41,9 +41,7 @@ const state = {
   selectedReceivers: new Set(),
   transfers: [],
   incomingRequest: null,
-  trustState: 'unverified',
-  transferPolls: new Map(),
-  transferTimers: new Map()
+  trustState: 'unverified'
 };
 
 const sampleDevices = [
@@ -151,69 +149,28 @@ async function confirmSend() {
       id: Number(transferResp.transfer_id) || Date.now(),
       name: transferResp.file_name || fileName,
       progress: 0,
-      status: 'queued'
+      status: 'in-progress'
     };
 
     state.transfers.unshift(transfer);
-    state.transferPolls.set(transfer.id, 0);
     confirmText.textContent = `Transfer queued with backend id=${transfer.id}`;
     renderTransfers();
-    startTransferProgressPolling(transfer.id);
+    tickTransfer(transfer.id);
   } catch (error) {
     console.error('Transfer start failed:', error);
     confirmText.textContent = 'Failed to queue transfer from backend. Is backend_service running?';
   }
 }
 
-function stopTransferProgressPolling(id) {
-  const timer = state.transferTimers.get(id);
-  if (timer) {
-    clearInterval(timer);
-    state.transferTimers.delete(id);
-  }
-}
-
-async function pollTransferProgress(id) {
-  const t = state.transfers.find((x) => x.id === id);
-  if (!t || t.status !== 'in-progress') return;
-
-  const nextPoll = (state.transferPolls.get(id) || 0) + 1;
-
-  try {
-    const response = await fetch(`${backendBase}/api/v1/transfers/progress?transfer_id=${id}&poll=${nextPoll}`, { method: 'GET' });
-    if (!response.ok) throw new Error(`backend status ${response.status}`);
-
-    const payload = await response.json();
-    state.transferPolls.set(id, nextPoll);
-    t.progress = Number(payload.progress_percent) || 0;
-    t.status = payload.status || (t.progress >= 100 ? 'completed' : 'in-progress');
+function tickTransfer(id) {
+  const interval = setInterval(() => {
+    const t = state.transfers.find((x) => x.id === id);
+    if (!t || t.status !== 'in-progress') return clearInterval(interval);
+    t.progress = Math.min(100, t.progress + 20);
+    if (t.progress === 100) t.status = 'completed';
     renderTransfers();
-
-    if (t.status === 'completed' || t.progress >= 100) {
-      stopTransferProgressPolling(id);
-    }
-  } catch (error) {
-    console.error('Transfer progress poll failed:', error);
-    stopTransferProgressPolling(id);
-    t.status = 'failed';
-    renderTransfers();
-    confirmText.textContent = 'Transfer progress sync failed with backend.';
-  }
-}
-
-function startTransferProgressPolling(id) {
-  const t = state.transfers.find((x) => x.id === id);
-  if (!t) return;
-
-  t.status = 'in-progress';
-  renderTransfers();
-
-  stopTransferProgressPolling(id);
-  const timer = setInterval(() => {
-    pollTransferProgress(id);
-  }, 600);
-  state.transferTimers.set(id, timer);
-  pollTransferProgress(id);
+    if (t.progress === 100) clearInterval(interval);
+  }, 500);
 }
 
 function renderTransfers() {
@@ -232,175 +189,36 @@ function renderTransfers() {
         <button class="btn tiny" data-act="cancel">Cancel</button>
       </div>`;
 
-    row.querySelector('[data-act="pause"]').onclick = () => {
-      if (t.status === 'in-progress') {
-        t.status = 'paused';
-        stopTransferProgressPolling(t.id);
-        renderTransfers();
-      }
-    };
-    row.querySelector('[data-act="resume"]').onclick = () => {
-      if (t.status === 'paused') {
-        startTransferProgressPolling(t.id);
-      }
-    };
-    row.querySelector('[data-act="cancel"]').onclick = () => {
-      t.status = 'failed';
-      stopTransferProgressPolling(t.id);
-      renderTransfers();
-    };
+    row.querySelector('[data-act="pause"]').onclick = () => { if (t.status === 'in-progress') { t.status = 'paused'; renderTransfers(); } };
+    row.querySelector('[data-act="resume"]').onclick = () => { if (t.status === 'paused') { t.status = 'in-progress'; renderTransfers(); tickTransfer(t.id); } };
+    row.querySelector('[data-act="cancel"]').onclick = () => { t.status = 'failed'; renderTransfers(); };
 
     transferList.appendChild(row);
   }
 }
 
-async function showIncomingRequest() {
-  try {
-    const response = await fetch(`${backendBase}/api/v1/incoming-request`, { method: 'GET' });
-    if (!response.ok) throw new Error(`backend status ${response.status}`);
-
-    const payload = await response.json();
-    const req = payload.request;
-    if (!req) throw new Error('missing request payload');
-
-    state.incomingRequest = {
-      requestId: Number(req.request_id),
-      from: req.from,
-      fileName: req.file_name,
-      size: req.size
-    };
-
-    incomingMeta.textContent = `${state.incomingRequest.from} wants to send ${state.incomingRequest.fileName} (${state.incomingRequest.size})`;
-    incomingModal.classList.remove('hidden');
-  } catch (error) {
-    console.error('Incoming request fetch failed:', error);
-    confirmText.textContent = 'Failed to load incoming request from backend.';
-  }
+function showIncomingRequest() {
+  state.incomingRequest = { from: 'Aarav iPhone', fileName: 'holiday_photos.zip', size: '128 MB' };
+  incomingMeta.textContent = `${state.incomingRequest.from} wants to send ${state.incomingRequest.fileName} (${state.incomingRequest.size})`;
+  incomingModal.classList.remove('hidden');
 }
 
-async function closeIncomingRequest(result) {
-  if (!state.incomingRequest) {
-    incomingModal.classList.add('hidden');
-    return;
-  }
-
-  try {
-    const response = await fetch(`${backendBase}/api/v1/incoming-request/decision`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ request_id: state.incomingRequest.requestId, decision: result })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`backend status ${response.status}: ${errorText}`);
-    }
-
-    const decisionPayload = await response.json();
-    confirmText.textContent = `Incoming request ${decisionPayload.decision}: ${state.incomingRequest.fileName}`;
-  } catch (error) {
-    console.error('Incoming decision submit failed:', error);
-    confirmText.textContent = 'Failed to submit incoming request decision to backend.';
-  }
-
+function closeIncomingRequest(result) {
+  if (state.incomingRequest) confirmText.textContent = `Incoming request ${result}: ${state.incomingRequest.fileName}`;
   state.incomingRequest = null;
   incomingModal.classList.add('hidden');
 }
 
-async function updateTrustState(trusted) {
-  const desiredState = trusted ? 'trusted' : 'unverified';
-
-  try {
-    const response = await fetch(`${backendBase}/api/v1/security/trust`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ trust_state: desiredState })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`backend status ${response.status}: ${errorText}`);
-    }
-
-    const payload = await response.json();
-    state.trustState = payload.trust_state || desiredState;
-    trustStateText.textContent = state.trustState === 'trusted'
-      ? 'Trust state: Trusted peer'
-      : 'Trust state: Unverified peer';
-  } catch (error) {
-    console.error('Trust state update failed:', error);
-    confirmText.textContent = 'Failed to persist trust decision to backend.';
-  }
+function updateTrustState(trusted) {
+  state.trustState = trusted ? 'trusted' : 'unverified';
+  trustStateText.textContent = trusted ? 'Trust state: Trusted peer' : 'Trust state: Unverified peer';
 }
 
-function updateSettingsSummaryLocal() {
+function updateSettingsSummary() {
   const mode = lanOnlyToggle.checked ? 'LAN-only' : 'Mixed-network';
   const relay = relayToggle.checked ? 'relay-on' : 'relay-off';
   const diag = diagToggle.checked ? 'diag-on' : 'diag-off';
   settingsSummary.textContent = `Mode: ${mode}, Channel: ${updateChannelSelect.value}, ${relay}, ${diag}`;
-}
-
-async function persistSettings() {
-  const payload = {
-    lan_only: lanOnlyToggle.checked,
-    relay_enabled: relayToggle.checked,
-    diagnostics_enabled: diagToggle.checked,
-    update_channel: updateChannelSelect.value
-  };
-
-  try {
-    const response = await fetch(`${backendBase}/api/v1/settings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`backend status ${response.status}: ${errorText}`);
-    }
-
-    const saved = await response.json();
-    lanOnlyToggle.checked = Boolean(saved.lan_only);
-    relayToggle.checked = Boolean(saved.relay_enabled);
-    diagToggle.checked = Boolean(saved.diagnostics_enabled);
-    updateChannelSelect.value = saved.update_channel || 'stable';
-    updateSettingsSummaryLocal();
-  } catch (error) {
-    console.error('Settings persist failed:', error);
-    confirmText.textContent = 'Failed to persist settings to backend.';
-  }
-}
-
-async function loadSecurityAndSettings() {
-  try {
-    const [securityResp, settingsResp] = await Promise.all([
-      fetch(`${backendBase}/api/v1/security/state`, { method: 'GET' }),
-      fetch(`${backendBase}/api/v1/settings`, { method: 'GET' })
-    ]);
-
-    if (!securityResp.ok || !settingsResp.ok) {
-      throw new Error('backend settings/security fetch failed');
-    }
-
-    const security = await securityResp.json();
-    const settings = await settingsResp.json();
-
-    localFingerprint.textContent = security.local_fingerprint || localFingerprint.textContent;
-    state.trustState = security.trust_state || 'unverified';
-    trustStateText.textContent = state.trustState === 'trusted'
-      ? 'Trust state: Trusted peer'
-      : 'Trust state: Unverified peer';
-
-    lanOnlyToggle.checked = Boolean(settings.lan_only);
-    relayToggle.checked = Boolean(settings.relay_enabled);
-    diagToggle.checked = Boolean(settings.diagnostics_enabled);
-    updateChannelSelect.value = settings.update_channel || 'stable';
-    updateSettingsSummaryLocal();
-  } catch (error) {
-    console.error('Load security/settings failed:', error);
-    updateSettingsSummaryLocal();
-  }
 }
 
 function updateAccessibilityClasses() {
@@ -431,10 +249,10 @@ declineBtn.onclick = () => closeIncomingRequest('declined');
 verifyPeerBtn.onclick = () => updateTrustState(true);
 revokePeerBtn.onclick = () => updateTrustState(false);
 
-lanOnlyToggle.onchange = persistSettings;
-relayToggle.onchange = persistSettings;
-diagToggle.onchange = persistSettings;
-updateChannelSelect.onchange = persistSettings;
+lanOnlyToggle.onchange = updateSettingsSummary;
+relayToggle.onchange = updateSettingsSummary;
+diagToggle.onchange = updateSettingsSummary;
+updateChannelSelect.onchange = updateSettingsSummary;
 reducedMotionToggle.onchange = updateAccessibilityClasses;
 highContrastToggle.onchange = updateAccessibilityClasses;
 largeTextToggle.onchange = updateAccessibilityClasses;
@@ -446,7 +264,7 @@ dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classLis
 dropZone.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
 
 localFingerprint.textContent = 'FA:13:7B:2C:90:AA:45:99';
-loadSecurityAndSettings();
+updateSettingsSummary();
 updateAccessibilityClasses();
 runScan();
 renderTransfers();
