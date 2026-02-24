@@ -15,9 +15,10 @@ fn handle_connection(mut stream: TcpStream) {
 }
 
 fn main() -> std::io::Result<()> {
-    let addr = "127.0.0.1:8787";
-    let listener = TcpListener::bind(addr)?;
-    println!("backend_service listening on http://{addr}");
+    let port = std::env::var("PORT").unwrap_or_else(|_| "8787".to_string());
+    let addr = format!("0.0.0.0:{}", port);
+    let listener = TcpListener::bind(&addr)?;
+    println!("Listening on http://{}", addr);
 
     for stream in listener.incoming() {
         if let Ok(stream) = stream {
