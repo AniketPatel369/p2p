@@ -1,0 +1,12 @@
+[package]
+name = "integration_suite"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+discovery = { path = "../discovery" }
+transfer = { path = "../transfer" }
+lan_offline = { path = "../lan_offline" }
+nat_traversal = { path = "../nat_traversal" }
+desktop_ui = { path = "../desktop_ui" }
+audit_telemetry = { path = "../audit_telemetry" }
